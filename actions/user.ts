@@ -9,23 +9,30 @@ export async function syncUser() {
         const user = await currentUser();
 
         if (!userId || !user) {
+            console.warn("syncUser: User context missing", { userId, hasUser: !!user });
             return { error: "User not found" };
         }
 
         if (!supabaseAdmin) {
-            console.error("Supabase Admin client not initialized. Check environment variables.");
+            console.error("syncUser: Supabase Admin client not initialized. Check SUPABASE_SERVICE_ROLE_KEY environment variable.");
             return { error: "Database configuration missing" };
         }
 
         // Check if user exists
-        const { data: existingUser } = await supabaseAdmin
+        const { data: existingUser, error: fetchError } = await supabaseAdmin
             .from("users")
             .select("*")
             .eq("user_id", userId)
             .single();
 
+        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "No rows found"
+            console.error("syncUser: Error fetching existing user:", fetchError);
+            return { error: "Database error" };
+        }
+
         if (!existingUser) {
-            const { error } = await supabaseAdmin
+            console.log(`syncUser: Creating new user record for ${userId}`);
+            const { error: insertError } = await supabaseAdmin
                 .from("users")
                 .insert({
                     user_id: userId,
@@ -33,14 +40,15 @@ export async function syncUser() {
                     name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
                 });
 
-            if (error) {
-                console.error("Error syncing user:", error);
+            if (insertError) {
+                console.error("syncUser: Error inserting user:", insertError);
                 return { error: "Failed to sync user" };
             }
+            console.log(`syncUser: Successfully created user record for ${userId}`);
         }
         return { success: true };
     } catch (error) {
-        console.error("Sync error:", error);
+        console.error("syncUser: Unexpected internal error:", error);
         return { error: "Internal error" };
     }
 }
