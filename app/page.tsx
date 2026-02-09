@@ -18,10 +18,22 @@ import {
   Clock,
   Layout
 } from "lucide-react";
+import {
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  SignedIn,
+  SignedOut,
+  useUser
+} from "@clerk/nextjs";
+import { syncUser } from "@/actions/user";
+import Link from "next/link";
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  const { user, isLoaded, isSignedIn } = useUser();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,6 +42,12 @@ export default function Home() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      syncUser();
+    }
+  }, [isLoaded, isSignedIn]);
 
   return (
     <div className="min-h-screen bg-[#070708] text-zinc-100 selection:bg-purple-500/30 font-sans selection:text-purple-200">
@@ -47,9 +65,26 @@ export default function Home() {
             <a href="#features" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">Features</a>
             <a href="#pricing" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">Pricing</a>
             <a href="#about" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">About</a>
-            <button className="px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/5">
-              Get Started
-            </button>
+            <SignedIn>
+              <Link href="/dashboard" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                Dashboard
+              </Link>
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                  Sign In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/5">
+                  Get Started
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
           </div>
 
           <button className="md:hidden text-zinc-100" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -64,9 +99,24 @@ export default function Home() {
           <a href="#features" onClick={() => setIsMenuOpen(false)} className="text-2xl font-bold text-zinc-400 hover:text-white transition-colors">Features</a>
           <a href="#pricing" onClick={() => setIsMenuOpen(false)} className="text-2xl font-bold text-zinc-400 hover:text-white transition-colors">Pricing</a>
           <a href="#about" onClick={() => setIsMenuOpen(false)} className="text-2xl font-bold text-zinc-400 hover:text-white transition-colors">About</a>
-          <button className="px-10 py-4 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-xl shadow-purple-500/20">
-            Get Started
-          </button>
+          <SignedIn>
+            <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-2xl font-bold text-zinc-400 hover:text-white transition-colors">
+              Dashboard
+            </Link>
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="text-xl font-bold text-zinc-400 hover:text-white transition-colors">Sign In</button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="px-10 py-4 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-xl shadow-purple-500/20">
+                Get Started
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
         </div>
       )}
 
@@ -92,10 +142,20 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-black font-bold text-lg flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all hover:scale-105 shadow-xl shadow-white/5 group">
-              Start Free Trial
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            <SignedOut>
+              <SignUpButton mode="modal">
+                <button className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-black font-bold text-lg flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all hover:scale-105 shadow-xl shadow-white/5 group">
+                  Start Free Trial
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <Link href="/dashboard" className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-black font-bold text-lg flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all hover:scale-105 shadow-xl shadow-white/5 group">
+                Go to Dashboard
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </SignedIn>
             <button className="w-full sm:w-auto px-8 py-4 rounded-full bg-zinc-900 text-white font-bold text-lg border border-zinc-800 flex items-center justify-center gap-2 hover:bg-zinc-800 transition-all">
               <Play className="w-5 h-5 fill-current" />
               Watch Demo
@@ -241,9 +301,18 @@ export default function Home() {
 
             <h2 className="text-4xl md:text-6xl font-black mb-8">Ready to automate your <br /> content growth?</h2>
             <p className="text-zinc-400 text-lg mb-12 max-w-2xl mx-auto">Join 5,000+ creators who are already saving hundreds of hours every month with Vidmaxx.</p>
-            <button className="px-12 py-5 rounded-full bg-white text-black font-bold text-xl hover:bg-zinc-200 transition-all hover:scale-105 shadow-2xl">
-              Get Started for Free
-            </button>
+            <SignedOut>
+              <SignUpButton mode="modal">
+                <button className="px-12 py-5 rounded-full bg-white text-black font-bold text-xl hover:bg-zinc-200 transition-all hover:scale-105 shadow-2xl">
+                  Get Started for Free
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <Link href="/dashboard" className="inline-block px-12 py-5 rounded-full bg-white text-black font-bold text-xl hover:bg-zinc-200 transition-all hover:scale-105 shadow-2xl">
+                Go to Dashboard
+              </Link>
+            </SignedIn>
           </div>
         </div>
       </section>
