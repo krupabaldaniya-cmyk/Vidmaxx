@@ -12,7 +12,10 @@ export default async function DashboardPage() {
     }
 
     // Sync user with Supabase
-    await syncUser();
+    const syncResult = await syncUser();
+    if ((syncResult as any)?.error) {
+        console.error("DashboardPage: syncUser failed", syncResult);
+    }
 
     return (
         <div className="max-w-7xl mx-auto">

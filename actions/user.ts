@@ -3,6 +3,8 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+let hasLoggedDbUnreachable = false;
+
 export async function syncUser() {
     try {
         const { userId } = await auth();
@@ -23,11 +25,47 @@ export async function syncUser() {
             .from("users")
             .select("*")
             .eq("user_id", userId)
-            .single();
+            .maybeSingle();
 
-        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "No rows found"
-            console.error("syncUser: Error fetching existing user:", fetchError);
-            return { error: "Database error" };
+        if (fetchError) {
+            const fetchErrorSummary = {
+                code: (fetchError as any)?.code,
+                message: (fetchError as any)?.message,
+                details: (fetchError as any)?.details,
+                hint: (fetchError as any)?.hint,
+            };
+
+            const detailsStr = String(fetchErrorSummary.details || "");
+            const messageStr = String(fetchErrorSummary.message || "");
+            const isDbUnreachable =
+                messageStr.includes("fetch failed") ||
+                detailsStr.includes("ENOTFOUND") ||
+                detailsStr.includes("EAI_AGAIN") ||
+                detailsStr.includes("ECONNREFUSED") ||
+                detailsStr.includes("ETIMEDOUT");
+
+            if (isDbUnreachable) {
+                if (!hasLoggedDbUnreachable) {
+                    hasLoggedDbUnreachable = true;
+                    console.warn(
+                        "syncUser: Database unreachable; skipping user sync.",
+                        JSON.stringify(fetchErrorSummary)
+                    );
+                }
+                return {
+                    skipped: true,
+                    reason: "Database unreachable",
+                };
+            }
+
+            console.error(
+                "syncUser: Error fetching existing user:",
+                JSON.stringify(fetchErrorSummary)
+            );
+            return {
+                error: "Database error",
+                ...fetchErrorSummary,
+            };
         }
 
         if (!existingUser) {

@@ -48,6 +48,7 @@ export default function DashboardLayout({
                             src="/logo.png"
                             alt="vidmaxx logo"
                             fill
+                            sizes="40px"
                             className="object-contain"
                         />
                     </div>
@@ -56,10 +57,12 @@ export default function DashboardLayout({
 
                 {/* Create Button */}
                 <div className="px-4 mb-6">
-                    <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-purple-500/10 active:scale-95">
-                        <PlusCircle className="w-5 h-5" />
-                        <span>Create New Series</span>
-                    </button>
+                    <Link href="/dashboard/create">
+                        <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-purple-500/10 active:scale-95">
+                            <PlusCircle className="w-5 h-5" />
+                            <span>Create New Series</span>
+                        </button>
+                    </Link>
                 </div>
 
                 {/* Sidebar Menu */}
@@ -69,8 +72,8 @@ export default function DashboardLayout({
                             key={option.name}
                             href={option.href}
                             className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${pathname === option.href
-                                    ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'
+                                ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'
                                 }`}
                         >
                             <option.icon className={`w-6 h-6 ${pathname === option.href ? 'text-purple-500' : 'group-hover:text-purple-400'}`} />
@@ -86,8 +89,8 @@ export default function DashboardLayout({
                             key={option.name}
                             href={option.href}
                             className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${pathname === option.href
-                                    ? 'bg-zinc-900 border border-zinc-800 text-white'
-                                    : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'
+                                ? 'bg-zinc-900 border border-zinc-800 text-white'
+                                : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'
                                 }`}
                         >
                             <option.icon className="w-6 h-6 group-hover:text-pink-400" />
