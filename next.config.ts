@@ -10,8 +10,9 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.clerk.dev https://challenges.cloudflare.com https://static.cloudflareinsights.com https://working-moth-41.clerk.accounts.dev",
-              "script-src-elem 'self' 'unsafe-inline' https://js.clerk.dev https://working-moth-41.clerk.accounts.dev",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://js.clerk.dev https://challenges.cloudflare.com https://static.cloudflareinsights.com https://working-moth-41.clerk.accounts.dev",
+              "script-src-elem 'self' 'unsafe-inline' blob: https://js.clerk.dev https://working-moth-41.clerk.accounts.dev",
+              "worker-src 'self' blob:;",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https: https://ik.imagekit.io",
