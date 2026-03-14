@@ -45,29 +45,29 @@ export const Languages = [
 
 export const DeepgramVoices = [
     // English (US) - Aura 2 Voices (Latest Canonical Names)
-    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", preview: "/voice/deepgram-aura-2-apollo-en.wav", gender: "male", language: "English" },
-    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", preview: "/voice/deepgram-aura-2-andromeda-en.wav", gender: "female", language: "English" },
-    { model: "deepgram", modelName: "aura-2-thalia-en", name: "Thalia", preview: "/voice/deepgram-aura-2-thalia-en.wav", gender: "female", language: "English" },
-    { model: "deepgram", modelName: "aura-2-amalthea-en", name: "Amalthea", preview: "/voice/deepgram-aura-2-amalthea-en.wav", gender: "female", language: "English" },
-    { model: "deepgram", modelName: "aura-2-odysseus-en", name: "Odysseus", preview: "/voice/deepgram-aura-2-odysseus-en.wav", gender: "male", language: "English" },
+    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", gender: "male", language: "English" },
+    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", gender: "female", language: "English" },
+    { model: "deepgram", modelName: "aura-2-thalia-en", name: "Thalia", gender: "female", language: "English" },
+    { model: "deepgram", modelName: "aura-2-amalthea-en", name: "Amalthea", gender: "female", language: "English" },
+    { model: "deepgram", modelName: "aura-2-odysseus-en", name: "Odysseus", gender: "male", language: "English" },
 
     // Spanish (MX) - Aura 2 Voices (Latest Canonical Names)
-    { model: "deepgram", modelName: "aura-2-alvaro-es", name: "Alvaro", preview: "/voice/deepgram-aura-2-alvaro-es.wav", gender: "male", language: "Spanish" },
-    { model: "deepgram", modelName: "aura-2-estrella-es", name: "Estrella", preview: "/voice/deepgram-aura-2-luna-es.wav", gender: "female", language: "Spanish" },
-    { model: "deepgram", modelName: "aura-2-nestor-es", name: "Nestor", preview: "/voice/deepgram-aura-2-nestor-es.wav", gender: "male", language: "Spanish" },
-    { model: "deepgram", modelName: "aura-2-celeste-es", name: "Celeste", preview: "/voice/deepgram-aura-2-celeste-es.wav", gender: "female", language: "Spanish" },
+    { model: "deepgram", modelName: "aura-2-alvaro-es", name: "Alvaro", gender: "male", language: "Spanish" },
+    { model: "deepgram", modelName: "aura-2-estrella-es", name: "Estrella", gender: "female", language: "Spanish" },
+    { model: "deepgram", modelName: "aura-2-nestor-es", name: "Nestor", gender: "male", language: "Spanish" },
+    { model: "deepgram", modelName: "aura-2-celeste-es", name: "Celeste", gender: "female", language: "Spanish" },
 
     // German (DE) - Fallback to working English models 
-    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", preview: "/voice/deepgram-aura-2-apollo-en.wav", gender: "male", language: "German" },
-    { model: "deepgram", modelName: "aura-2-thalia-en", name: "Thalia", preview: "/voice/deepgram-aura-2-thalia-en.wav", gender: "female", language: "German" },
+    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", gender: "male", language: "German" },
+    { model: "deepgram", modelName: "aura-2-thalia-en", name: "Thalia", gender: "female", language: "German" },
 
     // French (FR) - Fallback to working English models
-    { model: "deepgram", modelName: "aura-2-odysseus-en", name: "Odysseus", preview: "/voice/deepgram-aura-2-odysseus-en.wav", gender: "male", language: "French" },
-    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", preview: "/voice/deepgram-aura-2-andromeda-en.wav", gender: "female", language: "French" },
+    { model: "deepgram", modelName: "aura-2-odysseus-en", name: "Odysseus", gender: "male", language: "French" },
+    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", gender: "female", language: "French" },
 
     // Japanese (JP) - Fallback to working English models
-    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", preview: "/voice/deepgram-aura-2-apollo-en.wav", gender: "male", language: "Japanese" },
-    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", preview: "/voice/deepgram-aura-2-andromeda-en.wav", gender: "female", language: "Japanese" },
+    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", gender: "male", language: "Japanese" },
+    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", gender: "female", language: "Japanese" },
 ];
 
 export const FonadalabVoices = [
@@ -75,8 +75,35 @@ export const FonadalabVoices = [
         model: "fonadalab",
         modelName: "Vaanee",
         name: "Vaanee",
-        preview: "/voice/fonadalab-Vaanee.mp3",
         gender: "female",
+        language: "Hindi"
+    },
+    {
+        model: "fonadalab",
+        modelName: "Naad",
+        name: "Naad",
+        gender: "male",
+        language: "Hindi"
+    },
+    {
+        model: "fonadalab",
+        modelName: "Dhwani",
+        name: "Dhwani",
+        gender: "female",
+        language: "Hindi"
+    },
+    {
+        model: "fonadalab",
+        modelName: "Swara",
+        name: "Swara",
+        gender: "female",
+        language: "Hindi"
+    },
+    {
+        model: "fonadalab",
+        modelName: "Taal",
+        name: "Taal",
+        gender: "male",
         language: "Hindi"
     }
 ];
@@ -135,7 +162,11 @@ export const VOICE_MAP: Record<string, { provider: "deepgram" | "fondalabs"; voi
         provider: "fondalabs",
         modelLangCode: "Hindi",
         voices: {
-            "Vaanee": "Vaanee"
+            "Vaanee": "Vaanee",
+            "Naad": "Naad",
+            "Dhwani": "Dhwani",
+            "Swara": "Swara",
+            "Taal": "Taal"
         }
     }
 };

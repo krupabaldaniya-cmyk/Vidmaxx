@@ -32,6 +32,28 @@ export default function SeriesList() {
     const [series, setSeries] = useState<Series[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activePopover, setActivePopover] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState<string | null>(null);
+
+    const handleGenerateVideo = async (seriesId: string) => {
+        setIsGenerating(seriesId);
+        try {
+            const response = await fetch('/api/videos/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seriesId }),
+            });
+
+            if (!response.ok) throw new Error('Failed to queue generation');
+
+            toast.success('Video generation started! Redirecting to your videos...');
+            router.push(`/dashboard/videos?generating=${seriesId}`);
+        } catch (error) {
+            console.error('Generation error:', error);
+            toast.error('Failed to start video generation.');
+        } finally {
+            setIsGenerating(null);
+        }
+    };
 
     const fetchSeries = async () => {
         try {
@@ -220,11 +242,16 @@ export default function SeriesList() {
                                 <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition-all active:scale-95 disabled:opacity-50" disabled={isPaused}>
                                     <Video className="w-4 h-4" /> View Videos
                                 </button>
-                                <button className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 shadow-lg ${isPaused
-                                    ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-                                    : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/20'
-                                    }`} disabled={isPaused}>
-                                    <Zap className="w-4 h-4 fill-current" /> Generate
+                                <button
+                                    onClick={() => handleGenerateVideo(item.id)}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 shadow-lg ${isPaused || isGenerating === item.id
+                                        ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/20'
+                                        }`}
+                                    disabled={isPaused || isGenerating === item.id}
+                                >
+                                    <Zap className={`w-4 h-4 fill-current ${isGenerating === item.id ? 'animate-pulse text-purple-400' : ''}`} />
+                                    {isGenerating === item.id ? 'Starting...' : 'Generate'}
                                 </button>
                             </div>
                         </div>

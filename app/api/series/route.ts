@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { inngest } from '@/lib/inngest';
 
 export async function POST(req: Request) {
     try {
@@ -66,6 +67,15 @@ export async function POST(req: Request) {
             console.error('Error inserting series:', error);
             return new NextResponse(error.message, { status: 500 });
         }
+
+        // Trigger the video generation background job
+        await inngest.send({
+            name: 'video/generate.series',
+            data: {
+                seriesId: data.id,
+                formData
+            }
+        });
 
         return NextResponse.json(data);
     } catch (error) {

@@ -1,0 +1,21 @@
+
+> vidmaxx@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.43.38:3000
+- Environments: .env.local
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 2.1s
+ PUT /api/inngest 200 in 1975ms (compile: 1722ms, proxy.ts: 191ms, render: 62ms)
+ PUT /api/inngest 200 in 54ms (compile: 8ms, proxy.ts: 20ms, render: 26ms)
+ PUT /api/inngest 200 in 75ms (compile: 14ms, proxy.ts: 28ms, render: 33ms)
+ PUT /api/inngest 200 in 53ms (compile: 8ms, proxy.ts: 14ms, render: 32ms)
+ PUT /api/inngest 200 in 61ms (compile: 10ms, proxy.ts: 17ms, render: 34ms)
+ PUT /api/inngest 200 in 54ms (compile: 6ms, proxy.ts: 16ms, render: 31ms)
+ PUT /api/inngest 200 in 53ms (compile: 8ms, proxy.ts: 14ms, render: 31ms)
+ PUT /api/inngest 200 in 53ms (compile: 6ms, proxy.ts: 16ms, render: 31ms)
+[?25h
