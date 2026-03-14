@@ -28,8 +28,7 @@ vidmaxx/
 │   ├── supabase.ts           # Database client initialization
 │   └── utils.ts              # Tailwind styles & helper functions
 ├── public/                   # Static browser assets
-│   ├── logo.png              # App Branding
-│   └── voice/                # Static audio storage (Legacy)
+│   └── logo.png              # App Branding
 ├── hooks/                    # Custom React Hooks
 │   └── use-mobile.ts         # Device detection logic
 ├── .env.local                # Private Credentials & API Keys
