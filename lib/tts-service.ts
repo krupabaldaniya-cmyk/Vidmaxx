@@ -1,9 +1,10 @@
-import { VOICE_MAP } from './constants';
+import { FONADA_LANGUAGES, DEFAULT_VOICE_PER_LANGUAGE, VOICES } from './constants';
+import { fetchWithRetry } from './fetch-utils';
 
 interface TTSParams {
     text: string;
     language: string; // "English", "Hindi", etc.
-    voiceId: string; // "aura-asteria-en", "Vaanee", etc.
+    voiceId: string; // "aura-2-apollo-en", "Vaanee", etc.
 }
 
 interface TTSResult {
@@ -16,98 +17,199 @@ function isHindiText(text: string): boolean {
     return /[\u0900-\u097F]/.test(text);
 }
 
-// Utility: Translate English to Hindi (Devanagari)
+// Utility: Translate English to Hindi (Devanagari) - Placeholder
 async function translateToHindi(text: string): Promise<string> {
-    // Production: integrate real translation API (Google Translate, Azure, etc.)
     console.warn(`Translation service not implemented. Using fallback Hindi text.`);
-    return "नमस्ते, यह एक परीक्षण संदेश है।";
+    // In production, use Google Translate or similar
+    return text; // For now return as is, but Fonadalab expects Hindi
 }
+
+/**
+ * Split text into chunks to respect API limits (e.g., Fonadalab 450 chars)
+ */
+function splitTextIntoChunks(text: string, maxLength: number): string[] {
+    const chunks: string[] = [];
+    let currentChunk = "";
+
+    // Split by sentences or punctuation for natural breaks
+    const sentences = text.match(/[^.!?]+[.!?]*|[^.!?]+/g) || [text];
+
+    for (const sentence of sentences) {
+        if ((currentChunk + sentence).length <= maxLength) {
+            currentChunk += sentence;
+        } else {
+            if (currentChunk) chunks.push(currentChunk.trim());
+
+            if (sentence.length > maxLength) {
+                // If a single sentence is too long, split by words
+                const words = sentence.split(" ");
+                let wordChunk = "";
+                for (const word of words) {
+                    if ((wordChunk + word).length <= maxLength) {
+                        wordChunk += word + " ";
+                    } else {
+                        chunks.push(wordChunk.trim());
+                        wordChunk = word + " ";
+                    }
+                }
+                currentChunk = wordChunk;
+            } else {
+                currentChunk = sentence;
+            }
+        }
+    }
+    if (currentChunk) chunks.push(currentChunk.trim());
+    return chunks;
+}
+
+// (Language arrays are now imported from constants.ts)
+
 
 export async function synthesizeSpeech({ text, language, voiceId }: TTSParams): Promise<TTSResult> {
     console.log(`TTS Request: Lang=${language}, Voice=${voiceId}`);
 
-    const config = VOICE_MAP[language];
-    if (!config) {
-        throw new Error(`Unsupported language: ${language}. Check VOICE_MAP configuration.`);
-    }
-
-    // STRICT VALIDATION: Ensure voice belongs to the language
-    const allowedVoices = Object.values(config.voices);
-    if (!allowedVoices.includes(voiceId)) {
-        console.error(`Voice mismatch! ${voiceId} is not allowed for ${language}. Allowed: ${allowedVoices.join(', ')}`);
-        throw new Error(`Security Alert: Voice '${voiceId}' does not belong to language '${language}'. Request blocked.`);
-    }
-
-    // Provider Switching
-    if (config.provider === 'deepgram') {
-        return deepgramTTS(text, voiceId);
-    } else if (config.provider === 'fondalabs') {
-        // FondaLabs requires Hindi Unicode text
-        if (!isHindiText(text)) {
-            console.warn(`Non-Hindi text detected. Translating to Hindi...`);
+    // Route to Fonada for Indian languages regardless of voiceId
+    if (FONADA_LANGUAGES.includes(language)) {
+        console.log(`[tts] Routing to Fonada for language: ${language}`);
+        
+        // FondaLabs requires Hindi Unicode text for Hindi voices
+        if (language === 'Hindi' && !isHindiText(text)) {
+            console.warn(`Hindi requested but text is not Devanagari. Attempting translation...`);
             text = await translateToHindi(text);
         }
 
-        console.log(`Calling FondaLabs with Hindi text for voice: ${voiceId}`);
-        return await fondaTTS(text, voiceId);
+        return await fondaTTS(text, voiceId, language);
     }
 
-    throw new Error(`Unknown provider for language ${language}`);
+    // For all other languages, use Deepgram with the correct language voice
+    // Validate that voiceId exists in our VOICES list
+    const voiceExists = VOICES.find((v) => v.id === voiceId);
+    const resolvedVoiceId = voiceExists
+        ? voiceId
+        : DEFAULT_VOICE_PER_LANGUAGE[language] ?? "aura-2-apollo-en";
+
+    if (!voiceExists) {
+        console.warn(`[tts] Voice "${voiceId}" not found. Falling back to: "${resolvedVoiceId}"`);
+    }
+
+    console.log(`[tts] Cloudflare TTS: voice=${resolvedVoiceId}, language=${language}`);
+    return await cloudflareTTS(text, resolvedVoiceId);
 }
 
-async function deepgramTTS(text: string, voiceId: string): Promise<TTSResult> {
-    const apiKey = process.env.DEEPGRAM_API_KEY;
-    if (!apiKey) throw new Error("Deepgram API key missing");
+async function cloudflareTTS(text: string, voiceId: string): Promise<TTSResult> {
+    const accountId = process.env.CF_ACCOUNT_ID?.trim();
+    const apiToken = process.env.CF_API_TOKEN?.trim();
 
-    const response = await fetch(`https://api.deepgram.com/v1/speak?model=${voiceId}&encoding=linear16&container=wav`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Token ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-    });
+    if (!accountId || !apiToken) {
+        throw new Error("Missing CF_ACCOUNT_ID or CF_API_TOKEN");
+    }
+
+    const response = await fetchWithRetry(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/deepgram/aura-1`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${apiToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                text: text,
+                voice: voiceId,
+                encoding: "mp3",
+            }),
+            timeoutMs: 45000,  // 45 seconds — TTS is slow for long scripts
+            maxRetries: 5,
+            baseDelayMs: 3000,
+        }
+    );
 
     if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Deepgram Error: ${error}`);
+        const errText = await response.text();
+        throw new Error(`Cloudflare TTS error: ${response.status} — ${errText}`);
     }
 
     return {
         audioBuffer: await response.arrayBuffer(),
-        mimeType: 'audio/wav'
+        mimeType: 'audio/mpeg'
     };
 }
 
-async function fondaTTS(text: string, voiceId: string): Promise<TTSResult> {
+async function fondaTTS(text: string, voiceId: string, language: string): Promise<TTSResult> {
     const apiKey = process.env.FONADAVOICE_API_KEY;
     if (!apiKey) throw new Error("FondaLabs API key missing");
 
-    console.log(`FondaLabs Request: Voice=${voiceId}, Text=${text.substring(0, 50)}...`);
+    // Fonada has a 450 character limit
+    const chunks = splitTextIntoChunks(text, 450);
+    const audioBuffers: ArrayBuffer[] = [];
 
-    // Official FondaLabs endpoint from documentation
-    const response = await fetch("https://api.fonada.ai/tts/generate-audio-large", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            input: text,       // Hindi Devanagari text
-            voice: voiceId,    // "Vaanee"
-            language: "Hindi"  // Language string
-        })
-    });
+    for (const chunk of chunks) {
+        console.log(`Processing Fonada chunk: ${chunk.substring(0, 50)}...`);
+        const response = await fetchWithRetry("https://api.fonada.ai/tts/generate-audio-large", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                input: chunk,
+                voice: voiceId,
+                language: language // "Hindi" or "English"
+            })
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error("FondaLabs API Error:", errorText);
-        throw new Error(`FondaLabs Error (${response.status}): ${errorText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`FondaLabs Error (${response.status}): ${errorText}`);
+        }
+
+        audioBuffers.push(await response.arrayBuffer());
     }
 
+    // Concatenate buffers if multiple chunks
+    if (audioBuffers.length === 1) {
+        return {
+            audioBuffer: audioBuffers[0],
+            mimeType: 'audio/wav'
+        };
+    }
+
+    // Properly merge WAV files
+    // WAV header is typically 44 bytes. We assume all chunks have the exact same format.
+    let totalDataLength = 0;
+    const dataChunks: Uint8Array[] = [];
+    
+    // First chunk keeps its header (first 44 bytes) plus its data
+    const firstChunk = new Uint8Array(audioBuffers[0]);
+    totalDataLength += firstChunk.length - 44;
+    dataChunks.push(firstChunk);
+
+    // Subsequent chunks strip the first 44 bytes
+    for (let i = 1; i < audioBuffers.length; i++) {
+        const chunk = new Uint8Array(audioBuffers[i]);
+        const dataOnly = chunk.slice(44);
+        totalDataLength += dataOnly.length;
+        dataChunks.push(dataOnly);
+    }
+
+    // Allocate new buffer for exact required size
+    const mergedLength = 44 + totalDataLength;
+    const mergedBuffer = new Uint8Array(mergedLength);
+
+    // Write all data
+    let offset = 0;
+    for (const chunk of dataChunks) {
+        mergedBuffer.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    // Update File Size (Bytes 4-7, Little Endian 32-bit) = Total Data Length + 36
+    const view = new DataView(mergedBuffer.buffer);
+    view.setUint32(4, totalDataLength + 36, true);
+    // Update Data Size (Bytes 40-43, Little Endian 32-bit) = Total Data Length
+    view.setUint32(40, totalDataLength, true);
+
     return {
-        // FondaLabs returns MP3 format
-        audioBuffer: await response.arrayBuffer(),
-        mimeType: 'audio/mpeg'
+        audioBuffer: mergedBuffer.buffer,
+        mimeType: 'audio/wav'
     };
 }

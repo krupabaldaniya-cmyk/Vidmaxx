@@ -13,12 +13,13 @@ import {
     BrainCircuit,
     Check,
 } from 'lucide-react';
-import { Languages, DeepgramVoices, FonadalabVoices } from '@/lib/constants';
+import { Languages, VOICES } from '@/lib/constants';
 import LanguageVoiceSelection from '@/components/dashboard/language-voice-selection';
 import AcousticsSelection from '@/components/dashboard/acoustics-selection';
 import VisualsSelection from '@/components/dashboard/visuals-selection';
 import TypographySelection from '@/components/dashboard/typography-selection';
 import ScheduleSelection from '@/components/dashboard/schedule-selection';
+import { CaptionStyleId, isValidCaptionStyle } from '@/lib/caption-styles';
 
 const steps = [
     { name: 'Niche', description: 'Topic selection' },
@@ -46,7 +47,7 @@ export interface SeriesFormData {
     };
     identity: {
         language: typeof Languages[0];
-        voice: typeof DeepgramVoices[0] | typeof FonadalabVoices[0] | null;
+        voice: typeof VOICES[0] | null;
     };
     acoustics: {
         selectedMusicIds: string[];
@@ -57,7 +58,7 @@ export interface SeriesFormData {
         styleName: string;
     };
     typography: {
-        styleId: string | null;
+        styleId: CaptionStyleId | null;
         styleName: string;
     };
     schedule: {
@@ -99,6 +100,12 @@ export default function SeriesForm({ initialData, seriesId, mode }: SeriesFormPr
 
     const handleSubmit = async () => {
         try {
+            // Final validation before submission
+            const currentStyle = formData.typography.styleId;
+            if (!currentStyle || !isValidCaptionStyle(currentStyle)) {
+                throw new Error(`Invalid caption style selected: ${currentStyle}`);
+            }
+
             setIsSubmitting(true);
             const method = mode === 'create' ? 'POST' : 'PATCH';
             const payload = mode === 'create' ? { formData } : { id: seriesId, formData };

@@ -15,7 +15,10 @@ export default function EditSeriesPage() {
         const fetchSeries = async () => {
             try {
                 const response = await fetch(`/api/series?id=${id}`);
-                if (!response.ok) throw new Error('Failed to fetch series');
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => response.statusText);
+                    throw new Error(`Failed to fetch series (${response.status}): ${errorText}`);
+                }
 
                 const data = await response.json();
 

@@ -43,101 +43,53 @@ export const Languages = [
     },
 ];
 
-export const DeepgramVoices = [
-    // English (US) - Aura 2 Voices (Latest Canonical Names)
-    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", preview: "/voice/deepgram-aura-2-apollo-en.wav", gender: "male", language: "English" },
-    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", preview: "/voice/deepgram-aura-2-andromeda-en.wav", gender: "female", language: "English" },
-    { model: "deepgram", modelName: "aura-2-thalia-en", name: "Thalia", preview: "/voice/deepgram-aura-2-thalia-en.wav", gender: "female", language: "English" },
-    { model: "deepgram", modelName: "aura-2-amalthea-en", name: "Amalthea", preview: "/voice/deepgram-aura-2-amalthea-en.wav", gender: "female", language: "English" },
-    { model: "deepgram", modelName: "aura-2-odysseus-en", name: "Odysseus", preview: "/voice/deepgram-aura-2-odysseus-en.wav", gender: "male", language: "English" },
-
-    // Spanish (MX) - Aura 2 Voices (Latest Canonical Names)
-    { model: "deepgram", modelName: "aura-2-alvaro-es", name: "Alvaro", preview: "/voice/deepgram-aura-2-alvaro-es.wav", gender: "male", language: "Spanish" },
-    { model: "deepgram", modelName: "aura-2-estrella-es", name: "Estrella", preview: "/voice/deepgram-aura-2-luna-es.wav", gender: "female", language: "Spanish" },
-    { model: "deepgram", modelName: "aura-2-nestor-es", name: "Nestor", preview: "/voice/deepgram-aura-2-nestor-es.wav", gender: "male", language: "Spanish" },
-    { model: "deepgram", modelName: "aura-2-celeste-es", name: "Celeste", preview: "/voice/deepgram-aura-2-celeste-es.wav", gender: "female", language: "Spanish" },
-
-    // German (DE) - Fallback to working English models 
-    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", preview: "/voice/deepgram-aura-2-apollo-en.wav", gender: "male", language: "German" },
-    { model: "deepgram", modelName: "aura-2-thalia-en", name: "Thalia", preview: "/voice/deepgram-aura-2-thalia-en.wav", gender: "female", language: "German" },
-
-    // French (FR) - Fallback to working English models
-    { model: "deepgram", modelName: "aura-2-odysseus-en", name: "Odysseus", preview: "/voice/deepgram-aura-2-odysseus-en.wav", gender: "male", language: "French" },
-    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", preview: "/voice/deepgram-aura-2-andromeda-en.wav", gender: "female", language: "French" },
-
-    // Japanese (JP) - Fallback to working English models
-    { model: "deepgram", modelName: "aura-2-apollo-en", name: "Apollo", preview: "/voice/deepgram-aura-2-apollo-en.wav", gender: "male", language: "Japanese" },
-    { model: "deepgram", modelName: "aura-2-andromeda-en", name: "Andromeda", preview: "/voice/deepgram-aura-2-andromeda-en.wav", gender: "female", language: "Japanese" },
+export const VOICES = [
+  // ── Male English Voices (Aura-1 — Free Tier) ──
+  { id: "aura-zeus-en",    name: "Zeus",    gender: "Male",   language: "English", provider: "cloudflare" },
+  { id: "aura-orpheus-en", name: "Orpheus", gender: "Male",   language: "English", provider: "cloudflare" },
+  { id: "aura-arcas-en",   name: "Arcas",   gender: "Male",   language: "English", provider: "cloudflare" },
+  { id: "aura-angus-en",   name: "Angus",   gender: "Male",   language: "English", provider: "cloudflare" },
+  { id: "aura-helios-en",  name: "Helios",  gender: "Male",   language: "English", provider: "cloudflare" },
+  { id: "aura-orion-en",   name: "Orion",   gender: "Male",   language: "English", provider: "cloudflare" },
+  { id: "aura-perseus-en", name: "Perseus", gender: "Male",   language: "English", provider: "cloudflare" },
+  // ── Female English Voices (Aura-1 — Free Tier) ──
+  { id: "aura-asteria-en", name: "Asteria", gender: "Female", language: "English", provider: "cloudflare" },
+  { id: "aura-luna-en",    name: "Luna",    gender: "Female", language: "English", provider: "cloudflare" },
+  { id: "aura-stella-en",  name: "Stella",  gender: "Female", language: "English", provider: "cloudflare" },
+  { id: "aura-athena-en",  name: "Athena",  gender: "Female", language: "English", provider: "cloudflare" },
+  { id: "aura-hera-en",    name: "Hera",    gender: "Female", language: "English", provider: "cloudflare" },
+  // ── Hindi Voices (Fonada) ──
+  { id: "Naad",   name: "Hindi Male (Naad)",   gender: "Male",   language: "Hindi", provider: "fonada" },
+  { id: "Vaanee", name: "Hindi Female (Vaanee)", gender: "Female", language: "Hindi", provider: "fonada" },
+  { id: "Dhwani", name: "Hindi Female (Dhwani)", gender: "Female", language: "Hindi", provider: "fonada" },
 ];
 
-export const FonadalabVoices = [
-    {
-        model: "fonadalab",
-        modelName: "Vaanee",
-        name: "Vaanee",
-        preview: "/voice/fonadalab-Vaanee.mp3",
-        gender: "female",
-        language: "Hindi"
-    }
+// Languages supported for content generation (Gemini writes script in these)
+export const SUPPORTED_LANGUAGES = [
+  "English", "Hindi", "German", "French", "Spanish",
+  "Portuguese", "Italian", "Japanese", "Korean"
 ];
 
-// Strict Voice Mapping Configuration
-export const VOICE_MAP: Record<string, { provider: "deepgram" | "fondalabs"; voices: Record<string, string>; modelLangCode: string }> = {
-    // Deepgram Languages (Aura)
-    English: {
-        provider: "deepgram",
-        modelLangCode: "en-US",
-        voices: {
-            "aura-2-apollo-en": "aura-2-apollo-en",
-            "aura-2-andromeda-en": "aura-2-andromeda-en",
-            "aura-2-thalia-en": "aura-2-thalia-en",
-            "aura-2-amalthea-en": "aura-2-amalthea-en",
-            "aura-2-odysseus-en": "aura-2-odysseus-en"
-        }
-    },
-    Spanish: {
-        provider: "deepgram",
-        modelLangCode: "es-MX",
-        voices: {
-            "aura-2-alvaro-es": "aura-2-alvaro-es",
-            "aura-2-estrella-es": "aura-2-estrella-es",
-            "aura-2-nestor-es": "aura-2-nestor-es",
-            "aura-2-celeste-es": "aura-2-celeste-es"
-        }
-    },
-    French: {
-        provider: "deepgram",
-        modelLangCode: "fr-FR",
-        voices: {
-            "aura-2-odysseus-en": "aura-2-odysseus-en",
-            "aura-2-andromeda-en": "aura-2-andromeda-en"
-        }
-    },
-    German: {
-        provider: "deepgram",
-        modelLangCode: "de-DE",
-        voices: {
-            "aura-2-apollo-en": "aura-2-apollo-en",
-            "aura-2-thalia-en": "aura-2-thalia-en"
-        }
-    },
-    Japanese: {
-        provider: "deepgram",
-        modelLangCode: "ja-JP",
-        voices: {
-            "aura-2-apollo-en": "aura-2-apollo-en",
-            "aura-2-andromeda-en": "aura-2-andromeda-en"
-        }
-    },
+export const DEEPGRAM_SUPPORTED_LANGUAGES = [
+  "English", "German", "French", "Dutch", "Italian", "Japanese"
+];
 
-    // FondaLabs Languages - Only supported voices from API
-    Hindi: {
-        provider: "fondalabs",
-        modelLangCode: "Hindi",
-        voices: {
-            "Vaanee": "Vaanee"
-        }
-    }
+export const FONADA_LANGUAGES = [
+  "Hindi", "Tamil", "Telugu", "Bengali", "Marathi", "Gujarati", "Kannada"
+];
+
+// Important note in UI: voice is always English Aura-1 for non-Hindi languages.
+// The script TEXT will be in the selected language but spoken by English voice.
+// For native-language voice, Hindi + Fonada is the only fully supported option.
+export const DEFAULT_VOICE_PER_LANGUAGE: Record<string, string> = {
+  "English":    "aura-zeus-en",
+  "German":     "aura-zeus-en",
+  "French":     "aura-arcas-en",
+  "Dutch":      "aura-zeus-en",
+  "Italian":    "aura-zeus-en",
+  "Japanese":   "aura-zeus-en",
+  "Spanish":    "aura-zeus-en",
+  "Hindi":      "Naad",
 };
 
 // Background Music Options
@@ -358,6 +310,8 @@ export const VideoStyles = [
     },
 ];
 
+import { VALID_CAPTION_STYLES, type CaptionStyleId } from './caption-styles';
+
 // Caption Style Options
 export const CaptionStyles = [
     {
@@ -416,13 +370,64 @@ export const CaptionStyles = [
         tags: ['Energetic', 'Action', 'Alert']
     },
     {
-        id: 'classic',
-        name: 'Classic Subtitles',
-        description: 'Standard, non-intrusive subtitling style.',
-        font: 'Roboto-Medium',
+        id: 'modern',
+        name: 'Modern Clean',
+        description: 'Professional sans-serif with high contrast and smooth sliding.',
+        font: 'Inter-Bold',
         color: '#ffffff',
-        animation: 'scale',
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        animation: 'slide-up',
         textTransform: 'none' as const,
-        tags: ['Traditional', 'Simple', 'Readable']
+        tags: ['Modern', 'Corporate', 'Clean']
     },
+];
+
+export const CAPTION_STYLE_MAP: Record<CaptionStyleId | 'default', typeof CaptionStyles[0]> = {
+    hormozi: CaptionStyles[0],
+    mrbeast: CaptionStyles[1],
+    minimalist: CaptionStyles[2],
+    neon: CaptionStyles[3],
+    'red-highlight': CaptionStyles[4],
+    modern: CaptionStyles[5],
+    default: CaptionStyles[5], // Modern is default
+};
+
+export type MoodMusic = "calm" | "upbeat" | "dramatic" | "none";
+
+export const VISUAL_STYLE_TO_MUSIC: Record<string, MoodMusic> = {
+  "Food & Cuisine":    "calm",
+  "Nature & Wildlife": "calm",
+  "Nature":            "calm",
+  "Technology":        "upbeat",
+  "Tech":              "upbeat",
+  "Sports":            "upbeat",
+  "Fitness":           "upbeat",
+  "Health & Wellness": "calm",
+  "Health":            "calm",
+  "Horror":            "dramatic",
+  "Dark":              "dramatic",
+  "Mystery":           "dramatic",
+  "Motivational":      "upbeat",
+  "Education":         "calm",
+  "Travel":            "upbeat",
+  "Business":          "upbeat",
+  "Finance":           "upbeat",
+  "Comedy":            "upbeat",
+  "Fashion":           "upbeat",
+  "Advertise":         "upbeat",
+  "General":           "calm",
+};
+
+// Map mood to actual file in public/music/
+export const MUSIC_FILE_MAP: Record<MoodMusic, string | null> = {
+  calm:     "/music/bg-calm.mp3",
+  upbeat:   "/music/bg-upbeat.mp3",
+  dramatic: "/music/bg-dramatic.mp3",
+  none:     null,
+};
+
+export const VISUAL_STYLES = [
+  "Food & Cuisine", "Nature & Wildlife", "Technology", "Sports",
+  "Health & Wellness", "Horror", "Dark", "Motivational", "Education",
+  "Travel", "Business", "Finance", "Comedy", "Fashion", "Advertise", "General"
 ];
