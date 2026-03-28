@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { Languages, DeepgramVoices, FonadalabVoices } from '@/lib/constants';
+import { Languages, VOICES } from '@/lib/constants';
 
 interface LanguageVoiceSelectionProps {
     formData: any;
@@ -21,12 +21,19 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
     };
 
     const getVoicesForModel = (modelName: string) => {
-        const voices = modelName === 'deepgram' ? DeepgramVoices : FonadalabVoices;
-        return voices.filter(v => v.language === formData.identity.language.language);
+        // Filter voices to only show ones matching selected language
+        const availableVoices = VOICES.filter(
+            (v) => v.language === formData.identity.language.language
+        );
+
+        // If no voices exist for selected language, show English voices as fallback
+        return availableVoices.length > 0
+            ? availableVoices
+            : VOICES.filter((v) => v.language === "English");
     };
 
     const togglePreview = async (voice: any) => {
-        if (playingVoice === voice.modelName) {
+        if (playingVoice === voice.id) {
             audioRef.current?.pause();
             setPlayingVoice(null);
             return;
@@ -35,7 +42,7 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
         if (previewLoading) return;
 
         try {
-            setPreviewLoading(voice.modelName);
+            setPreviewLoading(voice.id);
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -44,9 +51,9 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    provider: voice.model,
-                    voice: voice.modelName,
-                    text: `Hello, this is ${voice.modelName}. I am an AI voice from ${voice.model}.`,
+                    provider: voice.provider,
+                    voice: voice.id,
+                    text: `Hello, this is ${voice.name}. I am an AI voice from ${voice.provider}.`,
                     language: formData.identity.language.language
                 }),
                 signal: controller.signal
@@ -61,7 +68,7 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
                 if (errorData.detail?.error === 'unsupported_voice') {
                     const availableVoices = errorData.detail.available_voices || [];
                     const availableVoicesStr = availableVoices.length > 0 ? availableVoices.join(', ') : 'none';
-                    throw new Error(`Voice '${voice.modelName}' is not supported. Available voices: ${availableVoicesStr}`);
+                    throw new Error(`Voice '${voice.id}' is not supported. Available voices: ${availableVoicesStr}`);
                 }
 
                 // Handle other API errors
@@ -109,7 +116,7 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
 
             try {
                 await audio.play();
-                setPlayingVoice(voice.modelName);
+                setPlayingVoice(voice.id);
                 audioRef.current = audio;
             } catch (playError) {
                 console.error('Audio play error:', playError);
@@ -187,9 +194,9 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
                         {getVoicesForModel(formData.identity.language.modelName).map((voice: any) => (
                             <div
-                                key={voice.modelName}
+                                key={voice.id}
                                 onClick={() => updateFormData('identity', { voice })}
-                                className={`group relative p-6 rounded-[24px] border transition-all duration-300 cursor-pointer flex items-center justify-between gap-4 ${formData.identity.voice?.modelName === voice.modelName
+                                className={`group relative p-6 rounded-[24px] border transition-all duration-300 cursor-pointer flex items-center justify-between gap-4 ${formData.identity.voice?.id === voice.id
                                     ? 'bg-purple-600/10 border-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.1)]'
                                     : 'bg-zinc-900/40 border-zinc-800/50 hover:border-zinc-700/50 hover:bg-zinc-900/60'
                                     }`}
@@ -203,7 +210,7 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
                                             {voice.gender}
                                         </span>
                                         <span className="text-[10px] uppercase font-black text-zinc-600 tracking-widest">
-                                            {voice.model}
+                                            {voice.provider}
                                         </span>
                                     </div>
                                 </div>
@@ -214,25 +221,25 @@ export default function LanguageVoiceSelection({ formData, updateFormData }: Lan
                                             e.stopPropagation();
                                             togglePreview(voice);
                                         }}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${playingVoice === voice.modelName
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${playingVoice === voice.id
                                             ? 'bg-purple-600 text-white animate-pulse'
-                                            : previewLoading === voice.modelName
+                                            : previewLoading === voice.id
                                                 ? 'bg-zinc-800 text-zinc-500 cursor-wait'
                                                 : 'bg-zinc-800/60 text-zinc-400 hover:bg-zinc-700 hover:text-white hover:scale-105 active:scale-95'
                                             }`}
-                                        disabled={!!previewLoading && previewLoading !== voice.modelName}
+                                        disabled={!!previewLoading && previewLoading !== voice.id}
                                         title="Preview Voice"
                                     >
-                                        {previewLoading === voice.modelName ? (
+                                        {previewLoading === voice.id ? (
                                             <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
-                                        ) : playingVoice === voice.modelName ? (
+                                        ) : playingVoice === voice.id ? (
                                             <Pause className="w-4 h-4 fill-current" />
                                         ) : (
                                             <Play className="w-4 h-4 fill-current ml-0.5" />
                                         )}
                                     </button>
 
-                                    {formData.identity.voice?.modelName === voice.modelName && (
+                                    {formData.identity.voice?.id === voice.id && (
                                         <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
                                             <Check className="w-4 h-4 text-white" />
                                         </div>

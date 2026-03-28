@@ -1,3 +1,4 @@
+import { fetchWithRetry } from "./fetch-utils";
 
 interface CaptionWord {
     word: string;
@@ -19,14 +20,52 @@ export async function generateCaptions(audioUrl: string, languageCode: string = 
 
     console.log(`Generating captions for: ${audioUrl} with language: ${languageCode}`);
 
-    // Map language names or codes if necessary
-    let lang = languageCode;
-    if (lang === "Hindi") lang = "hi";
-    if (lang === "English") lang = "en-US";
-    if (lang === "Spanish") lang = "es-MX";
-    if (lang === "French") lang = "fr-FR";
-    if (lang === "German") lang = "de-DE";
-    if (lang === "Japanese") lang = "ja-JP";
+    // Map language display names / locale codes → Deepgram language codes
+    const LANGUAGE_MAP: Record<string, string> = {
+        // Display name → code
+        "English": "en",
+        "Hindi": "hi",
+        "Spanish": "es",
+        "French": "fr",
+        "German": "de",
+        "Japanese": "ja",
+        "Korean": "ko",
+        "Portuguese": "pt",
+        "Italian": "it",
+        "Dutch": "nl",
+        "Chinese": "zh",
+        "Arabic": "ar",
+        "Russian": "ru",
+        "Turkish": "tr",
+        "Swedish": "sv",
+        "Norwegian": "no",
+        "Danish": "da",
+        "Finnish": "fi",
+        "Polish": "pl",
+        "Ukrainian": "uk",
+        // Locale codes → Deepgram code
+        "en-US": "en",
+        "en-GB": "en",
+        "hi-IN": "hi",
+        "es-MX": "es",
+        "es-ES": "es",
+        "fr-FR": "fr",
+        "de-DE": "de",
+        "ja-JP": "ja",
+        "ko-KR": "ko",
+        "pt-BR": "pt",
+        "pt-PT": "pt",
+        "it-IT": "it",
+        "nl-NL": "nl",
+        "zh-CN": "zh",
+        "zh-TW": "zh",
+    };
+
+    // Resolve: exact match → strip locale suffix → fallback to "en"
+    let lang = LANGUAGE_MAP[languageCode]
+        ?? LANGUAGE_MAP[languageCode.split("-")[0]]
+        ?? languageCode.split("-")[0]  // pass-through short code (e.g. "de")
+        ?? "en";
 
     const queryParams = new URLSearchParams({
         model: "nova-2",
@@ -37,7 +76,7 @@ export async function generateCaptions(audioUrl: string, languageCode: string = 
         language: lang,
     });
 
-    const response = await fetch(`https://api.deepgram.com/v1/listen?${queryParams.toString()}`, {
+    const response = await fetchWithRetry(`https://api.deepgram.com/v1/listen?${queryParams.toString()}`, {
         method: "POST",
         headers: {
             "Authorization": `Token ${apiKey}`,
@@ -59,8 +98,9 @@ export async function generateCaptions(audioUrl: string, languageCode: string = 
     }
 
     const transcript = results.transcript || "";
-    const words: CaptionWord[] = (results.words || []).map((w: any) => ({
+    const words: any[] = (results.words || []).map((w: any) => ({
         word: w.word,
+        punctuated_word: w.punctuated_word || w.word,
         start: w.start,
         end: w.end,
         confidence: w.confidence

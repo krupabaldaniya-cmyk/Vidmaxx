@@ -2,9 +2,17 @@ import { inngest } from "@/lib/inngest";
 import { supabaseAdmin, uploadAudio, uploadImage } from "@/lib/supabase";
 import { generateVideoScriptData } from "@/lib/gemini";
 import { synthesizeSpeech } from "@/lib/tts-service";
-import { VOICE_MAP } from "@/lib/constants";
+import { DEFAULT_VOICE_PER_LANGUAGE } from "@/lib/constants";
 import { generateCaptions } from "@/lib/caption-service";
 import { generateImage } from "@/lib/generate-image";
+import { renderVideo } from "../lib/render-video";
+import {
+    CaptionWord,
+    CaptionStyle,
+    VIDEO_FPS,
+} from "../remotion/video.types";
+import { VISUAL_STYLE_TO_MUSIC, type MoodMusic } from "../lib/constants";
+import { CaptionStyles as CAPTION_STYLES } from "../lib/constants";
 
 
 
@@ -31,48 +39,7 @@ export const generateVideo = inngest.createFunction(
     { id: "generate-video-series" },
     { event: "video/generate.series" },
     async ({ event, step }) => {
-        const { seriesId } = event.data;
-
-        // ── Step 0: Create a placeholder "generating" record ──────────────────
-        // This lets the frontend poll for status immediately after triggering.
-        const placeholderRecord = await step.run("create-placeholder-record", async () => {
-            if (!supabaseAdmin) {
-                throw new Error("Supabase Admin client not initialized.");
-            }
-
-            const { data, error } = await supabaseAdmin
-                .from("videos")
-                .insert({
-                    series_id: seriesId,
-                    status: "generating",
-                    title: null,
-                    script: null,
-                    audio_url: null,
-                    image_urls: [],
-                    captions: [],
-                })
-                .select("id")
-                .single();
-
-            if (error || !data) {
-                throw new Error(`Failed to create placeholder record: ${error?.message ?? "Unknown error"}`);
-            }
-
-            console.log("Created placeholder video record:", data.id);
-            return { videoId: data.id as string };
-        });
-
-        const videoId = placeholderRecord.videoId;
-
-        // Helper to mark the record as failed (used in catch block)
-        const markFailed = async (reason: string) => {
-            if (!supabaseAdmin) return;
-            await supabaseAdmin
-                .from("videos")
-                .update({ status: "failed" })
-                .eq("id", videoId);
-            console.error(`Video ${videoId} marked as failed: ${reason}`);
-        };
+        const { seriesId, videoId } = event.data;
 
         try {
             // ── Step 1: Fetch Series Data ──────────────────────────────────────
@@ -105,9 +72,8 @@ export const generateVideo = inngest.createFunction(
                 const normalizedLang = lang === "hi" || lang === "hi-IN" ? "Hindi" :
                     lang === "en" || lang === "en-US" ? "English" : lang;
 
-                // Get default voice for the language from VOICE_MAP
-                const langConfig = (VOICE_MAP as any)[normalizedLang] || VOICE_MAP.English;
-                const defaultVoice = Object.keys(langConfig.voices)[0];
+                // Get default voice for the language from DEFAULT_VOICE_PER_LANGUAGE
+                const defaultVoice = DEFAULT_VOICE_PER_LANGUAGE[normalizedLang] || DEFAULT_VOICE_PER_LANGUAGE["English"];
 
                 const normalized = {
                     id: data.id as string,
@@ -117,6 +83,7 @@ export const generateVideo = inngest.createFunction(
                     visualStyle: (data.visual_style_name ?? "cinematic") as string,
                     duration: (data.video_duration ?? 35) as number,
                     platform: ((data.target_platforms ?? ["Youtube"])[0]) as string,
+                    captionStyle: (data.caption_style ?? "default") as string,
                 };
 
                 console.log("SERIES DATA:", normalized);
@@ -125,12 +92,13 @@ export const generateVideo = inngest.createFunction(
 
             // ── Step 2: Generate Video Script via Gemini AI ───────────────────
             const scriptData = await step.run("generate-video-script", async () => {
-                console.log("STEP 2 — Generating video script for niche:", seriesData.niche);
+                console.log(`STEP 2 — Generating video script for niche: ${seriesData.niche} in language: ${seriesData.language}`);
 
                 const result = await generateVideoScriptData(
                     seriesData.niche,
                     seriesData.duration,
-                    seriesData.visualStyle
+                    seriesData.visualStyle,
+                    seriesData.language
                 );
 
                 console.log("SCRIPT DATA:", result.title);
@@ -149,8 +117,8 @@ export const generateVideo = inngest.createFunction(
                 // ── Call the correct TTS provider based on language ──
                 const ttsResult = await synthesizeSpeech({
                     text: scriptData.script,
-                    language: seriesData.language,
                     voiceId: seriesData.voice,
+                    language: seriesData.language,
                 });
 
                 // ── Upload audio to Supabase Storage ──
@@ -223,9 +191,9 @@ export const generateVideo = inngest.createFunction(
                 return { images };
             });
 
-            // ── Step 6: Update placeholder record with completed data ─────────
+            // ── Step 6: Save Video Data ───────────────────────────────────────
             const savedRecord = await step.run("save-video-data", async () => {
-                console.log("STEP 6 — Updating video record for series:", seriesId, "video:", videoId);
+                console.log("STEP 6 — Saving video data for series:", seriesId);
 
                 if (!supabaseAdmin) {
                     throw new Error("Supabase Admin client not initialized.");
@@ -233,28 +201,110 @@ export const generateVideo = inngest.createFunction(
 
                 const imageUrls = imageData.images.map((item: { sceneId: number, url: string }) => item.url);
 
-                const { data, error } = await supabaseAdmin
+                if (videoId) {
+                    const { data, error } = await supabaseAdmin
+                        .from("videos")
+                        .update({
+                            title: scriptData.title,
+                            script: scriptData.script,
+                            audio_url: audioData.audioUrl,
+                            image_urls: imageUrls,
+                            captions: captionData.words,
+                            status: "completed"
+                        })
+                        .eq('id', videoId)
+                        .select("id")
+                        .single();
+
+                    if (error) {
+                        console.error("Database Update Error:", error);
+                        throw new Error(`Failed to update video record: ${error.message}`);
+                    }
+
+                    return {
+                        videoId: data.id,
+                    };
+                } else {
+                    // Fallback for old events or failed initial creation
+                    const { data, error } = await supabaseAdmin
+                        .from("videos")
+                        .insert({
+                            series_id: seriesId,
+                            title: scriptData.title,
+                            script: scriptData.script,
+                            audio_url: audioData.audioUrl,
+                            image_urls: imageUrls,
+                            captions: captionData.words,
+                            status: "completed"
+                        })
+                        .select("id")
+                        .single();
+
+                    if (error) {
+                        console.error("Database Insert Error:", error);
+                        throw new Error(`Failed to insert video record: ${error.message}`);
+                    }
+
+                    return {
+                        videoId: data.id,
+                    };
+                }
+            });
+
+            // Calculate exact audio duration from captions
+            const audioDurationSeconds = captionData.words.length > 0 
+                ? captionData.words[captionData.words.length - 1].end 
+                : (audioData.duration || 30);
+
+            // ── Step 8: Render final MP4 video using Remotion ─────────────────────────────
+            const renderResult = await step.run("render-final-video", async () => {
+                if (!audioData.audioUrl) throw new Error("Step 8: audioUrl is missing");
+                
+                const urls = imageData.images.map((item: { sceneId: number, url: string }) => item.url);
+                if (!urls || urls.length === 0) throw new Error("Step 8: imageUrls missing");
+
+                const bgMusic: MoodMusic = VISUAL_STYLE_TO_MUSIC[seriesData.visualStyle] ?? "calm";
+
+                // Debug log — helps trace NaN / undefined issues before they crash Remotion
+                console.log("[inngest] renderVideo inputs:", {
+                    videoId: savedRecord.videoId,
+                    audioUrl: audioData.audioUrl,
+                    imageUrlsCount: urls.length,
+                    captionsCount: captionData.words?.length ?? 0,
+                    captionStyle: seriesData.captionStyle,
+                    bgMusic,
+                    language: seriesData.language,
+                    audioDurationSeconds,
+                });
+                
+                return await renderVideo({
+                    videoId: savedRecord.videoId,
+                    audioUrl: audioData.audioUrl,
+                    imageUrls: urls,
+                    captions: captionData.words ?? [],
+                    captionStyle: (seriesData.captionStyle as CaptionStyle) ?? "default",
+                    audioDurationSeconds,
+                    bgMusic,
+                });
+            });
+
+            // ── Step 9: Save final video URL to database ──────────────────────────────────
+            await step.run("save-video-url", async () => {
+                if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized");
+
+                const { error } = await supabaseAdmin
                     .from("videos")
                     .update({
-                        title: scriptData.title,
-                        script: scriptData.script,
-                        audio_url: audioData.audioUrl,
-                        image_urls: imageUrls,
-                        captions: captionData.words, // Storing word-level data for animations
+                        video_url: renderResult.videoUrl,
                         status: "completed",
+                        updated_at: new Date().toISOString(),
                     })
-                    .eq("id", videoId)
-                    .select("id")
-                    .single();
+                    .eq("id", savedRecord.videoId);
 
                 if (error) {
-                    console.error("Database Update Error:", error);
-                    throw new Error(`Failed to update video record: ${error.message}`);
+                    console.error("[Step 9] Failed to update video record:", error);
+                    throw new Error(`DB update failed: ${error.message}`);
                 }
-
-                return {
-                    videoId: data.id,
-                };
             });
 
             // ── Final Response ─────────────────────────────────────────────────
@@ -264,11 +314,22 @@ export const generateVideo = inngest.createFunction(
                 status: "completed",
                 message: "Video generation pipeline successfully orchestrated",
             };
+        } catch (error: any) {
+            console.error("Video Generation Pipeline Error:", error);
 
-        } catch (err: any) {
-            // Mark the placeholder record as failed so the frontend stops polling
-            await markFailed(err?.message ?? "Unknown pipeline error");
-            throw err; // Re-throw so Inngest marks the run as failed too
+            // Update status to failed if possible
+            if (videoId && supabaseAdmin) {
+                await step.run("update-failed-status", async () => {
+                    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized.");
+                    await supabaseAdmin
+                        .from("videos")
+                        .update({ status: "failed" })
+                        .eq("id", videoId);
+                });
+            }
+
+            throw error; // Re-throw to let Inngest handle retries if configured
         }
     }
 );
+

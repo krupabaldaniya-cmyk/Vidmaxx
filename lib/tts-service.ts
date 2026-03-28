@@ -1,4 +1,5 @@
-import { VOICE_MAP } from './constants';
+import { FONADA_LANGUAGES, DEFAULT_VOICE_PER_LANGUAGE, VOICES } from './constants';
+import { fetchWithRetry } from './fetch-utils';
 
 interface TTSParams {
     text: string;
@@ -61,53 +62,75 @@ function splitTextIntoChunks(text: string, maxLength: number): string[] {
     return chunks;
 }
 
+// (Language arrays are now imported from constants.ts)
+
+
 export async function synthesizeSpeech({ text, language, voiceId }: TTSParams): Promise<TTSResult> {
     console.log(`TTS Request: Lang=${language}, Voice=${voiceId}`);
 
-    const config = VOICE_MAP[language];
-    if (!config) {
-        throw new Error(`Unsupported language: ${language}. Check VOICE_MAP configuration.`);
-    }
-
-    // Provider Switching
-    if (config.provider === 'deepgram') {
-        return deepgramTTS(text, voiceId);
-    } else if (config.provider === 'fondalabs') {
+    // Route to Fonada for Indian languages regardless of voiceId
+    if (FONADA_LANGUAGES.includes(language)) {
+        console.log(`[tts] Routing to Fonada for language: ${language}`);
+        
         // FondaLabs requires Hindi Unicode text for Hindi voices
         if (language === 'Hindi' && !isHindiText(text)) {
             console.warn(`Hindi requested but text is not Devanagari. Attempting translation...`);
             text = await translateToHindi(text);
         }
 
-        console.log(`Calling FondaLabs with text for voice: ${voiceId}`);
         return await fondaTTS(text, voiceId, language);
     }
 
-    throw new Error(`Unknown provider for language ${language}`);
+    // For all other languages, use Deepgram with the correct language voice
+    // Validate that voiceId exists in our VOICES list
+    const voiceExists = VOICES.find((v) => v.id === voiceId);
+    const resolvedVoiceId = voiceExists
+        ? voiceId
+        : DEFAULT_VOICE_PER_LANGUAGE[language] ?? "aura-2-apollo-en";
+
+    if (!voiceExists) {
+        console.warn(`[tts] Voice "${voiceId}" not found. Falling back to: "${resolvedVoiceId}"`);
+    }
+
+    console.log(`[tts] Cloudflare TTS: voice=${resolvedVoiceId}, language=${language}`);
+    return await cloudflareTTS(text, resolvedVoiceId);
 }
 
-async function deepgramTTS(text: string, voiceId: string): Promise<TTSResult> {
-    const apiKey = process.env.DEEPGRAM_API_KEY;
-    if (!apiKey) throw new Error("Deepgram API key missing");
+async function cloudflareTTS(text: string, voiceId: string): Promise<TTSResult> {
+    const accountId = process.env.CF_ACCOUNT_ID?.trim();
+    const apiToken = process.env.CF_API_TOKEN?.trim();
 
-    // Deepgram Aura 2 is canonical. Ensure we use the full model name.
-    const response = await fetch(`https://api.deepgram.com/v1/speak?model=${voiceId}&encoding=linear16&container=wav`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Token ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-    });
+    if (!accountId || !apiToken) {
+        throw new Error("Missing CF_ACCOUNT_ID or CF_API_TOKEN");
+    }
+
+    const response = await fetchWithRetry(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/deepgram/aura-1`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${apiToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                text: text,
+                voice: voiceId,
+                encoding: "mp3",
+            }),
+            timeoutMs: 45000,  // 45 seconds — TTS is slow for long scripts
+            maxRetries: 5,
+            baseDelayMs: 3000,
+        }
+    );
 
     if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Deepgram Error: ${error}`);
+        const errText = await response.text();
+        throw new Error(`Cloudflare TTS error: ${response.status} — ${errText}`);
     }
 
     return {
         audioBuffer: await response.arrayBuffer(),
-        mimeType: 'audio/wav'
+        mimeType: 'audio/mpeg'
     };
 }
 
@@ -121,7 +144,7 @@ async function fondaTTS(text: string, voiceId: string, language: string): Promis
 
     for (const chunk of chunks) {
         console.log(`Processing Fonada chunk: ${chunk.substring(0, 50)}...`);
-        const response = await fetch("https://api.fonada.ai/tts/generate-audio-large", {
+        const response = await fetchWithRetry("https://api.fonada.ai/tts/generate-audio-large", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${apiKey}`,
@@ -146,21 +169,47 @@ async function fondaTTS(text: string, voiceId: string, language: string): Promis
     if (audioBuffers.length === 1) {
         return {
             audioBuffer: audioBuffers[0],
-            mimeType: 'audio/mpeg'
+            mimeType: 'audio/wav'
         };
     }
 
-    // Simple concatenation of MP3 buffers (usually works for standard MP3s)
-    const totalLength = audioBuffers.reduce((acc, buf) => acc + buf.byteLength, 0);
-    const combinedBuffer = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const buf of audioBuffers) {
-        combinedBuffer.set(new Uint8Array(buf), offset);
-        offset += buf.byteLength;
+    // Properly merge WAV files
+    // WAV header is typically 44 bytes. We assume all chunks have the exact same format.
+    let totalDataLength = 0;
+    const dataChunks: Uint8Array[] = [];
+    
+    // First chunk keeps its header (first 44 bytes) plus its data
+    const firstChunk = new Uint8Array(audioBuffers[0]);
+    totalDataLength += firstChunk.length - 44;
+    dataChunks.push(firstChunk);
+
+    // Subsequent chunks strip the first 44 bytes
+    for (let i = 1; i < audioBuffers.length; i++) {
+        const chunk = new Uint8Array(audioBuffers[i]);
+        const dataOnly = chunk.slice(44);
+        totalDataLength += dataOnly.length;
+        dataChunks.push(dataOnly);
     }
 
+    // Allocate new buffer for exact required size
+    const mergedLength = 44 + totalDataLength;
+    const mergedBuffer = new Uint8Array(mergedLength);
+
+    // Write all data
+    let offset = 0;
+    for (const chunk of dataChunks) {
+        mergedBuffer.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    // Update File Size (Bytes 4-7, Little Endian 32-bit) = Total Data Length + 36
+    const view = new DataView(mergedBuffer.buffer);
+    view.setUint32(4, totalDataLength + 36, true);
+    // Update Data Size (Bytes 40-43, Little Endian 32-bit) = Total Data Length
+    view.setUint32(40, totalDataLength, true);
+
     return {
-        audioBuffer: combinedBuffer.buffer,
-        mimeType: 'audio/mpeg'
+        audioBuffer: mergedBuffer.buffer,
+        mimeType: 'audio/wav'
     };
 }

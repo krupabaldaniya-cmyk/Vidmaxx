@@ -43,7 +43,10 @@ export default function SeriesList() {
                 body: JSON.stringify({ seriesId }),
             });
 
-            if (!response.ok) throw new Error('Failed to queue generation');
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(errorData || 'Failed to queue generation');
+            }
 
             toast.success('Video generation started! Redirecting to your videos...');
             router.push(`/dashboard/videos?generating=${seriesId}`);
